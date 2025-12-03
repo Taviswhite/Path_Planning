@@ -172,8 +172,6 @@ class GridGraph:
         # robot mask to the cell we are checking.
         in_bounds = np.bitwise_and(np.bitwise_and(j_inds >= 0, j_inds < self.height),
                                    np.bitwise_and(i_inds >= 0, i_inds < self.width))
-         if not np.any(in_bounds):
-            return True
         
         return np.any(self.is_cell_occupied(i_inds[in_bounds], j_inds[in_bounds]))
 
