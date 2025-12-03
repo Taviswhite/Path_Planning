@@ -6,6 +6,20 @@ class Cell(object):
     def __init__(self, i, j):
         self.i = i  # x-axis index (column)
         self.j = j  # y-axis index (row)
+    def __lt__(self, other):
+        # Required for heapq comparison
+        return (self.i, self.j) < (other.i, other.j)
+    
+    def __eq__(self, other):
+        if not isinstance(other, Cell):
+            return False
+        return self.i == other.i and self.j == other.j
+    
+    def __hash__(self):
+        return hash((self.i, self.j))
+    
+    def __repr__(self):
+        return f"Cell({self.i}, {self.j})"
 
 
 """TODO: You may consider defining a class to store your node data. If so, do
@@ -39,7 +53,7 @@ class GridGraph:
             self.height = height
             self.origin = origin
             self.meters_per_cell = meters_per_cell
-            self.cell_odds = cell_odds
+            self.cell_odds = cell_odds if cell_odds is not None else np.zeros((height, width), dtype=np.int8)
 
         self.threshold = threshold
         self.set_collision_radius(collision_radius)
@@ -128,6 +142,10 @@ class GridGraph:
         Args:
             r: The collision radius (meters).
         """
+        if self.meters_per_cell == 0:
+            r_cells = 1
+        else:
+            r_cells = int(np.ceil(r / self.meters_per_cell))
         r_cells = int(np.ceil(r / self.meters_per_cell))  # Radius in cells.
         # Get all the indices in a mask covering the robot.
         r_indices, c_indices = np.indices((2 * r_cells - 1, 2 * r_cells - 1))
@@ -143,6 +161,8 @@ class GridGraph:
     def check_collision(self, i, j):
         """Checks whether this cell is in collision based on the collision radius
         defined in the graph."""
+        if not self.is_cell_in_bounds(i, j):
+            return True
         # We will use the previously calculated mask over the robot radius to
         # check whether any indices in a radius around the robot are in collision.
         j_inds = self._coll_ind_j + j - (self.collision_radius_cells - 1)
@@ -152,14 +172,19 @@ class GridGraph:
         # robot mask to the cell we are checking.
         in_bounds = np.bitwise_and(np.bitwise_and(j_inds >= 0, j_inds < self.height),
                                    np.bitwise_and(i_inds >= 0, i_inds < self.width))
-
+         if not np.any(in_bounds):
+            return True
+        
         return np.any(self.is_cell_occupied(i_inds[in_bounds], j_inds[in_bounds]))
+
 
     def get_parent(self, cell):
         """Returns a Cell object representing the parent of the given cell, or
         None if the node has no parent. This function is used to trace back the
         path after graph search."""
-       
+         if self.parent_i is None or self.parent_j is None:
+            return None
+        
         pi = self.parent_i[cell.j, cell.i]
         pj = self.parent_j[cell.j, cell.i]
 
@@ -167,6 +192,20 @@ class GridGraph:
             return None
             
         return Cell(pi, pj)
+
+    def set_parent(self, cell, parent):
+        """Sets the parent of the given cell.
+        Args:
+            cell: The cell whose parent to set.
+            parent: The parent cell, or None if this is the start node.
+        """
+        if parent is None:
+            self.parent_i[cell.j, cell.i] = -1
+            self.parent_j[cell.j, cell.i] = -1
+        else:
+            self.parent_i[cell.j, cell.i] = parent.i
+            self.parent_j[cell.j, cell.i] = parent.j
+
 
 
     def init_graph(self):
@@ -178,7 +217,6 @@ class GridGraph:
         values, like the distances and the nodes."""
         self.visited_cells = []  # Reset visited cells for visualization.
 
-        self.visited_cells = []
 
         # distance from start
         self.dist = np.full((self.height, self.width), np.inf)
