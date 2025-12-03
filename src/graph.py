@@ -172,6 +172,7 @@ class GridGraph:
         # robot mask to the cell we are checking.
         in_bounds = np.bitwise_and(np.bitwise_and(j_inds >= 0, j_inds < self.height),
                                    np.bitwise_and(i_inds >= 0, i_inds < self.width))
+    
         
         return np.any(self.is_cell_occupied(i_inds[in_bounds], j_inds[in_bounds]))
 
@@ -180,7 +181,7 @@ class GridGraph:
         """Returns a Cell object representing the parent of the given cell, or
         None if the node has no parent. This function is used to trace back the
         path after graph search."""
-         if self.parent_i is None or self.parent_j is None:
+        if self.parent_i is None or self.parent_j is None:
             return None
         
         pi = self.parent_i[cell.j, cell.i]
