@@ -1,6 +1,8 @@
 import numpy as np
-from .graph import Cell
-from .utils import trace_path
+import heapq
+from collections import deque
+from graph import Cell
+from utils import trace_path
 
 """
 General graph search instructions:
@@ -34,26 +36,30 @@ def depth_first_search(graph, start, goal):
 
     stack = [start]
     visited = set()
-    visited.add((start.i, start.j))
-
-    graph.visited_cells.append(Cell(start.i, start.j))
+    
+    # Set start parent to None
+    graph.set_parent(start, None)
 
     while stack:
         current = stack.pop()
+        
+        key = (current.i, current.j)
+        if key in visited:
+            continue
+            
+        visited.add(key)
+        graph.visited_cells.append(Cell(current.i, current.j))
 
-        if current == goal:
+        if current.i == goal.i and current.j == goal.j:
             return trace_path(goal, graph)
 
-        for nbr in graph.get_neighbors(current):
-            key = (nbr.i, nbr.j)
-            if key not in visited:
-                visited.add(key)
-                graph.set_parent(nbr, current)
-                graph.visited_cells.append(Cell(nbr.i, nbr.j))
-                stack.append(nbr)
-
-
-    """TODO (P3): Implement DFS (optional)."""
+        for nbr in graph.find_neighbors(current.i, current.j):
+            nbr_key = (nbr.i, nbr.j)
+            if nbr_key not in visited and not graph.check_collision(nbr.i, nbr.j):
+                # Only set parent if not already set
+                if graph.parent_i[nbr.j, nbr.i] == -1 and graph.parent_j[nbr.j, nbr.i] == -1:
+                    graph.set_parent(nbr, current)
+                    stack.append(nbr)
 
     # If no path was found, return an empty list.
     return []
@@ -67,80 +73,85 @@ def breadth_first_search(graph, start, goal):
         goal: Goal cell as a Cell object.
     """
     graph.init_graph()  # Make sure all the node values are reset.
-        
-    queue = [start]
+    
+    queue = deque([start])  # Use deque for O(1) operations
     visited = set()
     visited.add((start.i, start.j))
-
-    graph.visited_cells.append(Cell(start.i, start.j))
+    
+    # Set start parent to None
+    graph.set_parent(start, None)
 
     while queue:
-        current = queue.pop(0)
+        current = queue.popleft()
+        graph.visited_cells.append(Cell(current.i, current.j))
 
-        if current == goal:
+        if current.i == goal.i and current.j == goal.j:
             return trace_path(goal, graph)
 
-        for nbr in graph.get_neighbors(current):
+        for nbr in graph.find_neighbors(current.i, current.j):
             key = (nbr.i, nbr.j)
-            if key not in visited:
+            if key not in visited and not graph.check_collision(nbr.i, nbr.j):
                 visited.add(key)
                 graph.set_parent(nbr, current)
-                graph.visited_cells.append(Cell(nbr.i, nbr.j))
                 queue.append(nbr)
-
-    """TODO (P3): Implement BFS."""
 
     # If no path was found, return an empty list.
     return []
 
 
 def a_star_search(graph, start, goal):
-    """A* Search (BFS) algorithm.
+    """A* Search algorithm.
     Args:
         graph: The graph class.
         start: Start cell as a Cell object.
         goal: Goal cell as a Cell object.
     """
     graph.init_graph()  # Make sure all the node values are reset.
-   
-    # f = g + h
-    # priority queue stores (f, g, cell)
+    
+    def heuristic(a, b):
+        """Manhattan distance heuristic."""
+        return abs(a.i - b.i) + abs(a.j - b.j)
+    
+    # Priority queue stores (f_score, cell)
     open_list = []
-    heapq.heappush(open_list, (0, 0, start))
-
-    graph.set_cost(start, 0)
-    visited = set()
-    visited.add((start.i, start.j))
-
-    graph.visited_cells.append(Cell(start.i, start.j))
+    heapq.heappush(open_list, (0, start))
+    
+    # Initialize start node
+    graph.dist[start.j, start.i] = 0
+    graph.set_parent(start, None)
+    
+    closed_set = set()
 
     while open_list:
-        f, g, current = heapq.heappop(open_list)
+        _, current = heapq.heappop(open_list)
+        
+        key = (current.i, current.j)
+        if key in closed_set:
+            continue
+            
+        closed_set.add(key)
+        graph.visited_cells.append(Cell(current.i, current.j))
 
-        if current == goal:
+        if current.i == goal.i and current.j == goal.j:
             return trace_path(goal, graph)
 
-        for nbr in graph.get_neighbors(current):
+        for nbr in graph.find_neighbors(current.i, current.j):
+            if graph.check_collision(nbr.i, nbr.j):
+                continue
+                
+            nbr_key = (nbr.i, nbr.j)
+            if nbr_key in closed_set:
+                continue
 
-            tentative_g = graph.get_cost(current) + 1
-            old_cost = graph.get_cost(nbr)
-
-            if old_cost is None or tentative_g < old_cost:
-                graph.set_cost(nbr, tentative_g)
-                h = graph.heuristic(nbr, goal)
-                f_new = tentative_g + h
-
+            tentative_g = graph.dist[current.j, current.i] + 1
+            
+            if tentative_g < graph.dist[nbr.j, nbr.i]:
+                graph.dist[nbr.j, nbr.i] = tentative_g
+                h = heuristic(nbr, goal)
+                f_score = tentative_g + h
+                
                 graph.set_parent(nbr, current)
-
-                heapq.heappush(open_list, (f_new, tentative_g, nbr))
-
-                key = (nbr.i, nbr.j)
-                if key not in visited:
-                    visited.add(key)
-                    graph.visited_cells.append(Cell(nbr.i, nbr.j))
-
-
-    """TODO (P3): Implement A*."""
+                heapq.heappush(open_list, (f_score, nbr))
 
     # If no path was found, return an empty list.
     return []
