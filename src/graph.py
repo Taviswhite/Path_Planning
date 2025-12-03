@@ -44,6 +44,11 @@ class GridGraph:
         self.threshold = threshold
         self.set_collision_radius(collision_radius)
         self.visited_cells = []  # Stores which cells have been visited in order for visualization.
+        self.parent_i = None
+        self.parent_j = None
+        self.dist = None
+        self.visited = None
+        self.f_score = None
 
         # TODO: Define any additional member variables to store node data.
 
@@ -154,8 +159,15 @@ class GridGraph:
         """Returns a Cell object representing the parent of the given cell, or
         None if the node has no parent. This function is used to trace back the
         path after graph search."""
-        # TODO (P3): Return the parent of the node at the cell.
-        return None
+       
+        pi = self.parent_i[cell.j, cell.i]
+        pj = self.parent_j[cell.j, cell.i]
+
+        if pi == -1 or pj == -1:
+            return None
+            
+        return Cell(pi, pj)
+
 
     def init_graph(self):
         """Initializes the node data in the graph in preparation for graph search.
@@ -166,15 +178,35 @@ class GridGraph:
         values, like the distances and the nodes."""
         self.visited_cells = []  # Reset visited cells for visualization.
 
-        # TODO (P3): Initialize your graph nodes.
+        self.visited_cells = []
+
+        # distance from start
+        self.dist = np.full((self.height, self.width), np.inf)
+
+        # visited flag
+        self.visited = np.zeros((self.height, self.width), dtype=bool)
+
+        # parent pointers
+        self.parent_i = np.full((self.height, self.width), -1, dtype=int)
+        self.parent_j = np.full((self.height, self.width), -1, dtype=int)
+
+        # f-score grid (A*)
+        self.f_score = np.full((self.height, self.width), np.inf)
 
     def find_neighbors(self, i, j):
         """Returns a list of the neighbors of the given cell. This should not
         include any cells outside of the bounds of the graph."""
         nbrs = []
-        # TODO (P3): Return a list of the indices of all the neighbors of the node
-        # at cell (i, j). You should not include any cells that are outside of the
-        # bounds of the graph.
+        # 4-connected grid
+        candidates = [
+            (i + 1, j),  # right
+            (i - 1, j),  # left
+            (i, j + 1),  # down
+            (i, j - 1)   # up
+        ]
 
-        # HINT: The function is_cell_in_bounds() might come in handy.
+        for ni, nj in candidates:
+            if self.is_cell_in_bounds(ni, nj):
+                nbrs.append(Cell(ni, nj))
+
         return nbrs
